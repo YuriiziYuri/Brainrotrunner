@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64bbc59d999fab840943d3d74f9aee45, type: 3}
+  m_Name: GameTuning
+  m_EditorClassIdentifier: Assembly-CSharp::BrainrotRunner.Core.GameTuning
+  laneWidth: 2.5
+  laneChangeTime: 0.15
+  allowChainedLaneChange: 1
+  startSpeed: 8
+  maxSpeed: 16
+  speedRamp: 0.09
+  jumpHeight: 1.8
+  timeToApex: 0.32
+  slideDuration: 0.6
+  swipeThresholdCm: 0.6
+  swipeMaxTime: 0.3
+  cameraOffset: {x: 0, y: 4, z: -6}
+  cameraSmoothTime: 0.12
+  cameraLookAhead: 6
+  cameraHorizontalSmoothTime: 0.18

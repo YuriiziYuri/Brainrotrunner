@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80234719862fbe04ea2e2d8dd32a94fb, type: 3}
+  m_Name: TrackPalette
+  m_EditorClassIdentifier: Assembly-CSharp::BrainrotRunner.World.TrackPalette
+  road: {fileID: 2100000, guid: 9ebacf87a2b08e842b6df08539f33282, type: 2}
+  laneLine: {fileID: 2100000, guid: 5dfced8fb6b0a8349a85a47872013cf8, type: 2}
+  marker: {fileID: 2100000, guid: 75146421726f12d4eac95669b6f21332, type: 2}
+  pillar: {fileID: 2100000, guid: 17ea1e6bfb8c10e418c2c68bee77e0f6, type: 2}
+  laneBlock: {fileID: 2100000, guid: 2ca7582a62e9e2d4982f7b14a640f611, type: 2}
+  jumpBlock: {fileID: 2100000, guid: fcbf3158fb783434a85786313f82dcec, type: 2}
+  slideBar: {fileID: 2100000, guid: 7e16648921307c84ca860e4750585a1b, type: 2}
+  coin: {fileID: 2100000, guid: 2555e1a7ee194a14bb08a778b626a402, type: 2}
