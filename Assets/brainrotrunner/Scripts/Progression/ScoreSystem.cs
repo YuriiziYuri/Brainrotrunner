@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace BrainrotRunner.Progression
 {
-
     public sealed class ScoreSystem : MonoBehaviour
     {
         public static ScoreSystem Instance { get; private set; }
@@ -15,7 +14,7 @@ namespace BrainrotRunner.Progression
         public int Score { get; private set; }
         public bool ThresholdReached { get; private set; }
 
-        public float Progress01 => tuning.levelScoreThreshold <= 0
+        public float Progress01 => tuning == null || tuning.levelScoreThreshold <= 0
             ? 0f
             : Mathf.Clamp01((float)Score / tuning.levelScoreThreshold);
 
@@ -28,6 +27,9 @@ namespace BrainrotRunner.Progression
             }
 
             Instance = this;
+
+            if (motor == null)
+                motor = FindFirstObjectByType<PlayerMotor>();
         }
 
         private void Start()
@@ -50,8 +52,15 @@ namespace BrainrotRunner.Progression
         private void Update()
         {
             GameManager game = GameManager.Instance;
-            if (game == null || game.State != GameState.Running)
+            if (game == null || game.State != GameState.Running || tuning == null)
                 return;
+
+            if (motor == null)
+            {
+                motor = FindFirstObjectByType<PlayerMotor>();
+                if (motor == null)
+                    return;
+            }
 
             int coins = CoinSystem.Instance != null ? CoinSystem.Instance.Collected : 0;
 

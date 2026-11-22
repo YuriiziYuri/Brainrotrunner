@@ -4,91 +4,154 @@ using UnityEngine;
 
 namespace BrainrotRunner.Player
 {
-
     [RequireComponent(typeof(PlayerMotor))]
     public sealed class PlayerCollisionProbe : MonoBehaviour
     {
-        private const int MaxHits = 8;
-
-        [Tooltip("Половина ширини та глибини персонажа. Трохи менше за візуальну капсулу: " +
-                 "чесніше для гравця, коли зачіп по краю не вважається зіткненням.")]
-        [SerializeField] private float halfWidth = 0.35f;
-        [SerializeField] private float halfDepth = 0.35f;
+        [SerializeField] private float halfWidth = 0.3f;
+        [SerializeField] private float halfDepth = 0.25f;
+        [Tooltip("Винос перевірки вперед (0 = точно по корпусу гравця).")]
+        [SerializeField] private float forwardKillLead = 0f;
 
         private PlayerMotor _motor;
-        private GameManager _game;
-        private readonly Collider[] _hits = new Collider[MaxHits];
+        private ChunkSpawner _spawner;
+        private Rigidbody _rb;
 
-        private void Awake() => _motor = GetComponent<PlayerMotor>();
-
-        private void Start() => _game = GameManager.Instance;
-
-        private void Update()
+        private void Awake()
         {
-            if (_game == null || _game.State != GameState.Running)
+            _motor = GetComponent<PlayerMotor>();
+            _spawner = FindFirstObjectByType<ChunkSpawner>();
+
+            _rb = GetComponent<Rigidbody>();
+            if (_rb == null)
+                _rb = gameObject.AddComponent<Rigidbody>();
+
+            _rb.isKinematic = true;
+            _rb.useGravity = false;
+        }
+
+        private void LateUpdate()
+        {
+            if (_motor == null || _motor.State == PlayerState.Dead)
                 return;
 
-            float halfHeight = _motor.CurrentHeight * 0.5f;
-            Vector3 center = transform.position;
-            Vector3 extents = new Vector3(halfWidth, halfHeight, halfDepth);
+            GameManager game = GameManager.Instance;
+            if (game != null && game.State != GameState.Running)
+                return;
 
-            CollectCoins(center, extents);
-
-            int count = Physics.OverlapBoxNonAlloc(center, extents, _hits, Quaternion.identity);
-
-            for (int i = 0; i < count; i++)
+            if (_spawner == null)
             {
-                Obstacle obstacle = _hits[i].GetComponent<Obstacle>();
-                if (obstacle == null)
+                _spawner = FindFirstObjectByType<ChunkSpawner>();
+                if (_spawner == null)
+                    return;
+            }
+
+            Bounds playerBounds = BuildPlayerBounds();
+            Bounds coinPickupBounds = playerBounds;
+            coinPickupBounds.Expand(new Vector3(0.55f, 0.45f, 0.45f));
+
+            foreach (TrackChunk chunk in _spawner.Chunks)
+            {
+                if (transform.position.z < chunk.StartZ - 3f || transform.position.z > chunk.EndZ + 3f)
                     continue;
 
-                _game.ReportPlayerHit(ReasonFor(obstacle.Type), _motor.DistanceTravelled);
-                return;
+                foreach (Coin coin in chunk.Coins)
+                {
+                    if (!coin.gameObject.activeInHierarchy)
+                        continue;
+
+                    if (coinPickupBounds.Intersects(coin.WorldBounds))
+                        coin.Collect();
+                }
+
+                foreach (Obstacle obs in chunk.Obstacles)
+                {
+                    if (!obs.gameObject.activeInHierarchy)
+                        continue;
+
+                    if (IsSafePass(obs, playerBounds))
+                        continue;
+
+                    KillPlayer(obs.Type);
+                    return;
+                }
             }
         }
 
-        private void CollectCoins(Vector3 center, Vector3 extents)
+        private void OnTriggerEnter(Collider other)
         {
-            Vector3 coinCenter = new Vector3(center.x, Mathf.Max(center.y, 0.7f), center.z);
-            Vector3 coinExtents = extents + new Vector3(0.25f, 0.45f, 0.25f);
+            if (_motor == null || _motor.State == PlayerState.Dead)
+                return;
 
-            int count = Physics.OverlapBoxNonAlloc(
-                coinCenter, coinExtents, _hits, Quaternion.identity, ~0, QueryTriggerInteraction.Collide);
-
-            for (int i = 0; i < count; i++)
+            Coin coin = other.GetComponent<Coin>();
+            if (coin != null)
             {
-                Coin coin = _hits[i].GetComponent<Coin>();
-                if (coin == null || coin.Collected)
-                    continue;
-
                 coin.Collect();
-
-                if (Progression.CoinSystem.Instance != null)
-                    Progression.CoinSystem.Instance.Add();
-            }
-        }
-
-        private static string ReasonFor(ObstacleType type)
-        {
-            switch (type)
-            {
-                case ObstacleType.JumpBlock:
-                    return "Не перестрибнув зелений блок";
-                case ObstacleType.SlideBar:
-                    return "Не підкотився під фіолетову балку";
-                default:
-                    return "Не обійшов червону стіну";
-            }
-        }
-
-        private void OnDrawGizmosSelected()
-        {
-            if (_motor == null)
                 return;
+            }
 
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireCube(transform.position,
-                new Vector3(halfWidth * 2f, _motor.CurrentHeight, halfDepth * 2f));
+            BiomePortal portal = other.GetComponent<BiomePortal>();
+            if (portal != null)
+            {
+                portal.TriggerPortal();
+                return;
+            }
+
+            // Перешкоди (Obstacle) обробляються виключно в LateUpdate через IsSafePass,
+            // щоб фізичний CapsuleCollider з Center Y=0 не вбивав гравця в повітрі!
+        }
+
+        private Bounds BuildPlayerBounds()
+        {
+            // Будуємо чесний хідбокс строго від підошви ніг (transform.position.y) вгору
+            float feetY = transform.position.y;
+            float height = Mathf.Max(0.5f, _motor.CurrentHeight);
+
+            Vector3 center = new Vector3(
+                transform.position.x,
+                feetY + height * 0.5f,
+                transform.position.z + forwardKillLead);
+
+            Vector3 size = new Vector3(halfWidth * 2f, height * 0.9f, halfDepth * 2f);
+            return new Bounds(center, size);
+        }
+
+        private bool IsSafePass(Obstacle obstacle, Bounds playerBounds)
+        {
+            // 1. Низький бар'єр: якщо гравець у стрибку — завжди безпечно
+            if (obstacle.Type == ObstacleType.JumpBlock && !_motor.IsGrounded)
+                return true;
+
+            // 2. Ворота / верхня балка: якщо гравець у підкаті — завжди безпечно
+            if (obstacle.Type == ObstacleType.SlideBar && _motor.IsSliding)
+                return true;
+
+            Bounds obsBounds = obstacle.WorldBounds;
+
+            // 3. Машини (LaneBlock): якщо ноги гравця (transform.position.y) піднялися вище 1.15 м
+            // або гравець летить у верхній фазі стрибка — машина чисто перестрибується!
+            if (obstacle.Type == ObstacleType.LaneBlock && !_motor.IsGrounded)
+            {
+                if (transform.position.y >= 1.15f)
+                    return true;
+            }
+
+            return !playerBounds.Intersects(obsBounds);
+        }
+
+        private void KillPlayer(ObstacleType hitType)
+        {
+            _motor.Kill();
+
+            string reason = hitType switch
+            {
+                ObstacleType.LaneBlock => "Врізався у перешкоду",
+                ObstacleType.JumpBlock => "Не перестрибнув бар'єр",
+                ObstacleType.SlideBar => "Не зробив підкат під балкою",
+                _ => "Зіткнення"
+            };
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.ReportPlayerHit(reason, _motor.DistanceTravelled);
         }
     }
 }

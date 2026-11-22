@@ -20,11 +20,11 @@ namespace BrainrotRunner.Core
         public float speedRamp = 0.09f;
 
         [Header("Jump / Slide")]
-        public float jumpHeight = 1.8f;
+        public float jumpHeight = 2.8f;
         [Tooltip("Час до вершини стрибка, с. Разом із jumpHeight задає гравітацію.")]
-        public float timeToApex = 0.32f;
+        public float timeToApex = 0.38f;
         [Tooltip("Множник гравітації на спуску. >1 робить падіння різкішим і стрибок чіткішим.")]
-        public float fallGravityMultiplier = 1.6f;
+        public float fallGravityMultiplier = 1.45f;
         public float slideDuration = 0.6f;
         [Tooltip("До якої частки висоти стискається персонаж під час ковзання.")]
         public float slideHeightScale = 0.45f;

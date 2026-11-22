@@ -13,10 +13,7 @@ namespace BrainrotRunner.Core
         public GameState State { get; private set; } = GameState.Boot;
         public float RunTime { get; private set; }
 
-        ///Чому забіг завершився (текст для гравця)
         public string LastFailReason { get; private set; } = string.Empty;
-
-        ///Дистанція останнього забігу, метри
         public float LastRunDistance { get; private set; }
 
         public event Action RunStarted;
@@ -50,10 +47,19 @@ namespace BrainrotRunner.Core
             RunStarted?.Invoke();
         }
 
-        ///Викликається детектором зіткнень: забіг завершується
+        public void ResumeAfterRevive()
+        {
+            LastFailReason = string.Empty;
+            State = GameState.Running;
+        }
+
         public void ReportPlayerHit(string reason, float distance)
         {
             if (State != GameState.Running)
+                return;
+
+            HeroSelectUI ui = FindFirstObjectByType<HeroSelectUI>();
+            if (ui != null && ui.IsInvulnerable())
                 return;
 
             LastFailReason = reason;
@@ -62,7 +68,6 @@ namespace BrainrotRunner.Core
             RunEnded?.Invoke();
         }
 
-        ///Повний перезапуск без LoadScene: усі системи скидаються по події
         public void Restart() => StartRun();
 
         private void OnDestroy()

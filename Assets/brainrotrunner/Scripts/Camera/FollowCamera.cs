@@ -1,9 +1,9 @@
 using BrainrotRunner.Core;
+using BrainrotRunner.Player;
 using UnityEngine;
 
 namespace BrainrotRunner.CameraLayer
 {
-
     public sealed class FollowCamera : MonoBehaviour
     {
         [SerializeField] private GameTuning tuning;
@@ -16,17 +16,19 @@ namespace BrainrotRunner.CameraLayer
 
         private void Start()
         {
-            if (target == null)
-                return;
-
-            _groundReferenceY = target.position.y;
-            _hasGroundReference = true;
-            transform.position = DesiredPosition(target.position);
+            FindAndInitTarget();
         }
 
         private void LateUpdate()
         {
             if (target == null)
+            {
+                FindAndInitTarget();
+                if (target == null)
+                    return;
+            }
+
+            if (tuning == null)
                 return;
 
             Vector3 targetPosition = target.position;
@@ -35,7 +37,6 @@ namespace BrainrotRunner.CameraLayer
 
             float x = Mathf.SmoothDamp(
                 current.x, desired.x, ref _horizontalVelocity, tuning.cameraHorizontalSmoothTime);
-
 
             Vector3 verticalSource = new Vector3(desired.x, current.y, current.z);
             Vector3 smoothed = Vector3.SmoothDamp(
@@ -47,7 +48,29 @@ namespace BrainrotRunner.CameraLayer
                 targetPosition.x,
                 FollowedY(targetPosition.y),
                 targetPosition.z + tuning.cameraLookAhead);
-            transform.rotation = Quaternion.LookRotation(lookAt - transform.position, Vector3.up);
+
+            Vector3 dir = lookAt - transform.position;
+            if (dir.sqrMagnitude > 0.0001f)
+                transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+        }
+
+        private void FindAndInitTarget()
+        {
+            if (target == null)
+            {
+                PlayerMotor motor = FindFirstObjectByType<PlayerMotor>();
+                if (motor != null)
+                    target = motor.transform;
+            }
+
+            if (target == null)
+                return;
+
+            _groundReferenceY = target.position.y;
+            _hasGroundReference = true;
+
+            if (tuning != null)
+                transform.position = DesiredPosition(target.position);
         }
 
         private Vector3 DesiredPosition(Vector3 targetPosition)
@@ -66,6 +89,11 @@ namespace BrainrotRunner.CameraLayer
             return Mathf.Lerp(_groundReferenceY, targetY, tuning.cameraVerticalFollow);
         }
 
-        public void SetTarget(Transform newTarget) => target = newTarget;
+        public void SetTarget(Transform newTarget)
+        {
+            target = newTarget;
+            if (target != null)
+                FindAndInitTarget();
+        }
     }
 }
