@@ -18,12 +18,28 @@ MonoBehaviour:
   startSpeed: 8
   maxSpeed: 16
   speedRamp: 0.09
-  jumpHeight: 1.8
-  timeToApex: 0.32
-  slideDuration: 0.6
+  jumpHeight: 3.6
+  timeToApex: 0.42
+  fallGravityMultiplier: 1.8
+  slideDuration: 0.4
+  slideHeightScale: 0.45
+  slideTransitionTime: 0.06
   swipeThresholdCm: 0.6
   swipeMaxTime: 0.3
+  chunkLength: 60
+  chunksAhead: 6
+  safeStartDistance: 45
+  rowSpacingMin: 14
+  rowSpacingMax: 22
+  doubleBlockChance: 0.35
+  obstacleSeed: 12345
+  pointsPerMeter: 1
+  pointsPerCoin: 10
+  levelScoreThreshold: 200
+  coinsPerRow: 5
+  coinSpacing: 2
   cameraOffset: {x: 0, y: 4, z: -6}
   cameraSmoothTime: 0.12
   cameraLookAhead: 6
   cameraHorizontalSmoothTime: 0.18
+  cameraVerticalFollow: 0.25

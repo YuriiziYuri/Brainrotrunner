@@ -20,3 +20,32 @@ MonoBehaviour:
   jumpBlock: {fileID: 2100000, guid: fcbf3158fb783434a85786313f82dcec, type: 2}
   slideBar: {fileID: 2100000, guid: 7e16648921307c84ca860e4750585a1b, type: 2}
   coin: {fileID: 2100000, guid: 2555e1a7ee194a14bb08a778b626a402, type: 2}
+  biomeSwitchDistance: 150
+  biomes:
+  - biomeName: City
+    skyColor: {r: 0.3647059, g: 0.6627451, b: 1, a: 0}
+    roadPrefab: {fileID: 919132149155446097, guid: 3b8e179a321019c498b6707afde747ba, type: 3}
+    laneBlockPrefab: {fileID: -7298610048552672696, guid: f5227771b56ef474a970d472aba02bb1, type: 3}
+    jumpBlockPrefab: {fileID: 919132149155446097, guid: 3dca667e1698f8b47aa5df417441182e, type: 3}
+    slideBarPrefab: {fileID: 919132149155446097, guid: 4336a6e1a89653f49ae17984cff35af7, type: 3}
+    sideEnvPrefabs:
+    - {fileID: -8931425911047795555, guid: b9e22ea9dcf7c6e4a9278fdcbfa57e01, type: 3}
+    - {fileID: 919132149155446097, guid: fecf88e0ce3cade4795422d6085fbfeb, type: 3}
+  - biomeName: Tundra
+    skyColor: {r: 0.54509807, g: 0.6509804, b: 0.72156864, a: 0}
+    roadPrefab: {fileID: 919132149155446097, guid: 393b8ec394eea0b4eb1f2fdff522ce00, type: 3}
+    laneBlockPrefab: {fileID: 348781577454068789, guid: c7f63b62377a044438013494d5e761f4, type: 3}
+    jumpBlockPrefab: {fileID: 919132149155446097, guid: 469cc32ba8761e44991fc0ee424f25f5, type: 3}
+    slideBarPrefab: {fileID: 919132149155446097, guid: 6bd5abf33aaceb6469327e2d8c5de693, type: 3}
+    sideEnvPrefabs:
+    - {fileID: 4148037540408751253, guid: 396d60c5d97d6d346a4c2430d6df22a1, type: 3}
+    - {fileID: 919132149155446097, guid: 47e858df6d1c21544bda52b729e3ac69, type: 3}
+  - biomeName: Savanna
+    skyColor: {r: 1, g: 0.6901961, b: 0.40392157, a: 0}
+    roadPrefab: {fileID: 919132149155446097, guid: e43289d538e98ae47909ccee1ddfd71e, type: 3}
+    laneBlockPrefab: {fileID: -6315177943698250527, guid: b6c81e68593991645826e79d324c72bc, type: 3}
+    jumpBlockPrefab: {fileID: 919132149155446097, guid: 6b384c8de3c1fec4cb495e9035db7f41, type: 3}
+    slideBarPrefab: {fileID: 919132149155446097, guid: 1598aeab941da5748a3ae0ce6b4ae7f1, type: 3}
+    sideEnvPrefabs:
+    - {fileID: 4446112624232410023, guid: c8969d38455dd6646bdfc7b615827b87, type: 3}
+    - {fileID: 919132149155446097, guid: 37914dc8f5e1ad1498d3fe30154bc2e8, type: 3}
