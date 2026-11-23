@@ -12,6 +12,9 @@ namespace BrainrotRunner.World
         private const int ObstaclePoolSize = 18;
         private const int CoinPoolSize = 36;
 
+        // Точна висота бордюрів префабу дороги, щоб сам асфальт був рівно під колесами та ногами (Y = 0)
+        private const float RoadCurbHeightOffset = 0.40f;
+
         private GameTuning _tuning;
         private TrackPalette _palette;
         private readonly List<Obstacle> _obstacles = new List<Obstacle>();
@@ -111,7 +114,6 @@ namespace BrainrotRunner.World
 
                 if (hasRoadPrefab)
                 {
-                    // Перевіряємо орієнтацію префабу дороги (як у City_Road, який у прев'ю стоїть вертикально)
                     GameObject probeHolder = new GameObject("RoadProbe");
                     GameObject probeModel = Instantiate(biome.roadPrefab, probeHolder.transform, false);
                     Bounds rawBounds = GetLocalBounds(probeHolder);
@@ -153,21 +155,18 @@ namespace BrainrotRunner.World
                         StripColliders(seg);
 
                         seg.transform.localRotation = baseRot * seg.transform.localRotation;
-
-                        // Масштабуємо в просторі тримача, щоб X завжди був шириною, а Z — довжиною
                         segHolder.transform.localScale = new Vector3(scaleX, 1f, scaleZ);
 
                         Bounds bnd = GetLocalBounds(segHolder);
-                        // Верхня поверхня дороги рівно на y = 0.0f під ногами гравця
                         segHolder.transform.localPosition = new Vector3(
                             -bnd.center.x,
-                            -bnd.max.y,
+                            -bnd.max.y + RoadCurbHeightOffset,
                             zCenter - bnd.center.z);
                     }
                 }
 
-                // Тротуари з боків дороги (верхня грань на y = 0)
-                float sidewalkWidth = 10f;
+                // Тротуари з боків дороги
+                float sidewalkWidth = 14f;
                 for (int side = -1; side <= 1; side += 2)
                 {
                     GameObject sidewalk = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -186,7 +185,6 @@ namespace BrainrotRunner.World
                     Destroy(sidewalk.GetComponent<Collider>());
                 }
 
-                // Ліхтарі та будівлі біома по обидва боки
                 var envList = new List<GameObject>();
                 if (biome.sideEnvPrefabs != null && biome.sideEnvPrefabs.Length > 0)
                 {
@@ -196,18 +194,49 @@ namespace BrainrotRunner.World
                     foreach (GameObject p in biome.sideEnvPrefabs)
                     {
                         if (p == null) continue;
+                        string pName = p.name.ToLower();
+                        bool isLampByName = pName.Contains("lamp") || pName.Contains("light") || pName.Contains("pole");
+
                         GameObject probe = Instantiate(p);
                         Bounds pb = GetLocalBounds(probe);
                         DestroyImmediate(probe);
 
                         float maxAxis = Mathf.Max(pb.size.x, Mathf.Max(pb.size.y, pb.size.z));
                         float minAxis = Mathf.Min(pb.size.x, Mathf.Min(pb.size.y, pb.size.z));
-                        bool isPole = maxAxis > minAxis * 3.0f && Mathf.Min(pb.size.x, pb.size.z) < 1.5f;
+                        bool isPole = isLampByName || (maxAxis > minAxis * 2.5f && Mathf.Min(pb.size.x, pb.size.z) < 2.5f);
 
                         if (isPole) thinPrefabs.Add(p);
                         else bigPrefabs.Add(p);
                     }
 
+                    // 1. Ліхтарі — ставимо строго зверху на правому бордюрі
+                    if (thinPrefabs.Count > 0)
+                    {
+                        int thinIdx = 0;
+                        for (float z = 5f; z < Length; z += 10f)
+                        {
+                            for (int side = -1; side <= 1; side += 2)
+                            {
+                                if (b == 0 && side < 0)
+                                    continue;
+
+                                GameObject prefab = thinPrefabs[thinIdx % thinPrefabs.Count];
+                                thinIdx++;
+
+                                float curbTopCenterX = (b == 0) ? (actualRoadHalfWidth - 0.18f) : (actualRoadHalfWidth + 0.25f);
+                                float yBase = (b == 0) ? RoadCurbHeightOffset : 0f;
+                                float? customYaw = (b == 0) ? 0f : (float?)null;
+
+                                GameObject prop = SpawnAlignedProp(
+                                    prefab, biomeRoot.transform, $"Thin_{biome.biomeName}_{z:F0}_{side}",
+                                    side, curbTopCenterX, yBase, z, 4.6f, 1.4f, true, customYaw);
+
+                                envList.Add(prop);
+                            }
+                        }
+                    }
+
+                    // 1. Ліхтарі — ставимо зверху на обидва бордюри (зліва і справа) плафонами до дороги
                     if (thinPrefabs.Count > 0)
                     {
                         int thinIdx = 0;
@@ -218,32 +247,60 @@ namespace BrainrotRunner.World
                                 GameObject prefab = thinPrefabs[thinIdx % thinPrefabs.Count];
                                 thinIdx++;
 
+                                float curbTopCenterX = (b == 0) ? (actualRoadHalfWidth - 0.18f) : (actualRoadHalfWidth + 0.25f);
+                                float yBase = (b == 0) ? RoadCurbHeightOffset : 0f;
+                                float? customYaw = (b == 0) ? (side < 0 ? 180f : 0f) : (float?)null;
+
                                 GameObject prop = SpawnAlignedProp(
                                     prefab, biomeRoot.transform, $"Thin_{biome.biomeName}_{z:F0}_{side}",
-                                    side, actualRoadHalfWidth + 0.35f, z, 4.6f, 1.4f, true);
+                                    side, curbTopCenterX, yBase, z, 4.6f, 1.4f, true, customYaw);
 
                                 envList.Add(prop);
                             }
                         }
                     }
 
+                    // 2. Великі об'єкти (лікарня в 1-му біомі, ялинки/скелі в 2-му, дерева/гори в 3-му)
                     if (bigPrefabs.Count > 0)
                     {
                         int bigIdx = 0;
-                        float stepZ = 12f;
-                        for (float z = 6f; z < Length; z += stepZ)
+                        float stepZ = 14f;
+                        for (float z = 7f; z < Length; z += stepZ)
                         {
                             for (int side = -1; side <= 1; side += 2)
                             {
                                 GameObject prefab = bigPrefabs[bigIdx % bigPrefabs.Count];
                                 bigIdx++;
 
-                                float zPos = Mathf.Clamp(z + (side > 0 ? stepZ * 0.4f : 0f), 3.5f, Length - 3.5f);
-                                float offsetFromCurb = thinPrefabs.Count > 0 ? 1.55f : 0.45f;
+                                float zPos = Mathf.Clamp(z + (side > 0 ? stepZ * 0.4f : 0f), 4f, Length - 4f);
+                                float offsetFromCurb;
+                                float? customYaw = null;
+                                float targetHeight = 3.8f;
+                                float maxFootprint = 5.6f;
+
+                                if (b == 0)
+                                {
+                                    // 1-й біом (Місто): лікарня стоїть біля бордюру і повернута вправо
+                                    offsetFromCurb = 0.25f;
+                                    customYaw = 0f;
+                                }
+                                else if (b == 2)
+                                {
+                                    // 3-й біом (Савана): гори і дерева трохи відсунуті від бордюру, щоб не торкалися його
+                                    offsetFromCurb = 1.35f;
+                                    customYaw = -90f;
+                                    targetHeight = 5.0f;
+                                    maxFootprint = 7.2f;
+                                }
+                                else
+                                {
+                                    // 2-й біом (Тундра)
+                                    offsetFromCurb = 0.4f;
+                                }
 
                                 GameObject prop = SpawnAlignedProp(
                                     prefab, biomeRoot.transform, $"Big_{biome.biomeName}_{z:F0}_{side}",
-                                    side, actualRoadHalfWidth + offsetFromCurb, zPos, 3.6f, 5.2f, false);
+                                    side, actualRoadHalfWidth + offsetFromCurb, 0f, zPos, targetHeight, maxFootprint, false, customYaw);
 
                                 envList.Add(prop);
                             }
@@ -259,7 +316,8 @@ namespace BrainrotRunner.World
 
         private static GameObject SpawnAlignedProp(
             GameObject prefab, Transform parent, string objName,
-            int side, float innerEdgeX, float zPos, float targetHeight, float maxFootprint, bool isLampPost)
+            int side, float innerEdgeX, float baseY, float zPos, float targetHeight, float maxFootprint,
+            bool isLampPost, float? overrideYaw = null)
         {
             GameObject holder = new GameObject(objName);
             holder.transform.SetParent(parent, false);
@@ -283,7 +341,7 @@ namespace BrainrotRunner.World
                 localBnd = GetLocalBounds(holder);
             }
 
-            float yaw = side < 0 ? 90f : -90f;
+            float yaw = overrideYaw ?? (side < 0 ? 90f : -90f);
             holder.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
 
             localBnd = GetLocalBounds(holder);
@@ -298,14 +356,21 @@ namespace BrainrotRunner.World
                 localBnd = GetLocalBounds(holder);
             }
 
+            // Для ліхтаря вирівнюємо X за правим краєм тумби (-localBnd.max.x + 0.14f), щоб виліт плафона вліво не зміщував основу з бордюру
+            float anchorX = isLampPost
+                ? -(localBnd.max.x - 0.14f)
+                : -localBnd.center.x;
+
             model.transform.localPosition += new Vector3(
-                -localBnd.center.x,
+                anchorX,
                 -localBnd.min.y,
                 -localBnd.center.z);
 
             localBnd = GetLocalBounds(holder);
-            float centerX = side * (innerEdgeX + localBnd.extents.x);
-            holder.transform.localPosition = new Vector3(centerX, 0f, zPos);
+            float centerX = isLampPost
+                ? side * innerEdgeX
+                : side * (innerEdgeX + localBnd.extents.x);
+            holder.transform.localPosition = new Vector3(centerX, baseY, zPos);
 
             return holder;
         }

@@ -156,9 +156,10 @@ namespace BrainrotRunner.World
             if (!TryGetMeshBoundsInRoot(model.transform.parent, model, out b))
                 return;
 
-            model.transform.localPosition += new Vector3(
+            const float groundSnapOffset = -0.015f;
+            model.transform.localPosition = new Vector3(
                 -b.center.x,
-                -b.min.y,
+                -b.min.y + groundSnapOffset,
                 -b.center.z);
         }
 
@@ -228,9 +229,9 @@ namespace BrainrotRunner.World
 
             switch (type)
             {
-                case ObstacleType.LaneBlock: return new Vector3(width, 1.85f, 3.4f); // Машини — висота оптимізована для перестрибування
-                case ObstacleType.JumpBlock: return new Vector3(width, 0.65f, 0.85f); // Низькі бар'єри
-                default: return new Vector3(width, 2.4f, 0.85f); // Ворота на опорах (SignGate, IceArch, WoodGate)
+                case ObstacleType.LaneBlock: return new Vector3(width, 1.85f, 3.4f);
+                case ObstacleType.JumpBlock: return new Vector3(width, 0.65f, 0.85f);
+                default: return new Vector3(width, 2.4f, 0.85f);
             }
         }
 
@@ -240,7 +241,7 @@ namespace BrainrotRunner.World
             {
                 case ObstacleType.LaneBlock: return 0.925f;
                 case ObstacleType.JumpBlock: return 0.325f;
-                default: return 1.75f; // Верхня перекладина воріт піднята вище для вільного підкату
+                default: return 1.75f;
             }
         }
     }

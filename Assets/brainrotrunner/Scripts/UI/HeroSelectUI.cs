@@ -6,6 +6,7 @@ using UnityEngine.InputSystem;
 using TMPro;
 using BrainrotRunner.Core;
 using BrainrotRunner.Player;
+using BrainrotRunner.World;
 
 public class HeroSelectUI : MonoBehaviour
 {
@@ -111,7 +112,7 @@ public class HeroSelectUI : MonoBehaviour
     public TMP_Text levelUpBonusText;
 
     [Header("Налаштування прогресії")]
-    public float scorePerLevel = 100000f;
+    public float scorePerLevel = 500000f;
     public int levelBonusCoins = 500;
     public float autoCloseSeconds = 1.0f;
     public MonoBehaviour[] gameplayScriptsToPause;
@@ -125,7 +126,8 @@ public class HeroSelectUI : MonoBehaviour
     private int totalKeys = 3;
     private int activeBiomeIndex = 0;
     private int unlockedHeroCount = 1;
-    private float nextLevelScoreTarget;
+    private float prevLevelScoreTarget = 0f;
+    private float nextLevelScoreTarget = 500000f;
     private bool isPaused = false;
     private bool isWaitingRevive = false;
     private float invulnerableTimer = 0f;
@@ -141,6 +143,7 @@ public class HeroSelectUI : MonoBehaviour
     private bool hasSavedCamTransform = false;
 
     private BrainrotAudioManager audioManager;
+    private ChunkSpawner chunkSpawner;
     private readonly string[] biomeNames = { "МІСТО ОДЕСА", "ТУНДРА", "САВАНА" };
     private readonly int[] biomeUnlockScores = { 0, 500000, 1000000 };
 
@@ -157,10 +160,19 @@ public class HeroSelectUI : MonoBehaviour
         return FindFirstObjectByType<PlayerMotor>();
     }
 
+    private float GetStepScore()
+    {
+        return scorePerLevel >= 500000f ? scorePerLevel : 500000f;
+    }
+
     private void Start()
     {
         Time.timeScale = 1f;
         DisableLegacyOverlays();
+
+        // Фіксуємо крок рівнів на 500,000 (1-й перехід: 500,000; 2-й перехід: 1,000,000)
+        scorePerLevel = GetStepScore();
+        autoCloseSeconds = 1.0f;
 
         audioManager = FindFirstObjectByType<BrainrotAudioManager>();
         if (audioManager == null)
@@ -175,6 +187,8 @@ public class HeroSelectUI : MonoBehaviour
             gameplaySystems = gameObject.AddComponent<BrainrotGameplaySystems>();
         }
         gameplaySystems.ui = this;
+
+        chunkSpawner = FindFirstObjectByType<ChunkSpawner>();
 
         if (heroSwitcher == null)
             heroSwitcher = FindFirstObjectByType<HeroSwitcher>();
@@ -211,9 +225,18 @@ public class HeroSelectUI : MonoBehaviour
         if (pausePanel != null) pausePanel.SetActive(false);
         if (revivePanel != null) revivePanel.SetActive(false);
 
-        gameplaySystems.ApplyBiomeVisualTheme(activeBiomeIndex);
+        ApplyBiomeEverywhere(activeBiomeIndex);
         SwitchState(UIState.SplashIntro);
         if (isMusicEnabled) audioManager.PlayMenuMusic();
+    }
+
+    private void ApplyBiomeEverywhere(int biomeIdx)
+    {
+        gameplaySystems?.ApplyBiomeVisualTheme(biomeIdx);
+        if (chunkSpawner == null)
+            chunkSpawner = FindFirstObjectByType<ChunkSpawner>();
+        if (chunkSpawner != null)
+            chunkSpawner.SetBiomeImmediate(biomeIdx);
     }
 
     private void ApplyAudioState()
@@ -259,7 +282,6 @@ public class HeroSelectUI : MonoBehaviour
             hubTapToRunButton.onClick.AddListener(OnPlayButtonClicked);
         }
 
-        // Автопошук кнопки "БІГТИ ЗАРАЗ!" за назвою, навіть якщо посилання злетіло в інспекторі
         if (centerPlayButton == null && mainHubPanel != null)
         {
             Transform found = mainHubPanel.transform.Find("CenterPlayButton");
@@ -491,7 +513,7 @@ public class HeroSelectUI : MonoBehaviour
         if (bestScore < biomeUnlockScores[biomeIdx]) return;
         audioManager?.PlayClick();
         activeBiomeIndex = biomeIdx;
-        gameplaySystems?.ApplyBiomeVisualTheme(activeBiomeIndex);
+        ApplyBiomeEverywhere(activeBiomeIndex);
         UpdateAllLabels();
         SwitchState(UIState.MainHub);
     }
@@ -552,7 +574,6 @@ public class HeroSelectUI : MonoBehaviour
                 hubTapToRunText.rectTransform.localScale = new Vector3(pulse, pulse, 1f);
             }
 
-            // Швидкий старт пробілом або Enter з головного хабу
             if (currentState == UIState.MainHub && Keyboard.current != null &&
                 (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame))
             {
@@ -583,6 +604,7 @@ public class HeroSelectUI : MonoBehaviour
             if (invulnerableTimer > 0f)
                 invulnerableTimer -= Time.deltaTime;
 
+            // Рахунок йде від 0 і перевіряє пороги 500,000 -> 1,000,000 -> далі по +500,000
             distanceScore += Time.deltaTime * 350f;
             int intScore = Mathf.FloorToInt(distanceScore);
             if (intScore > bestScore)
@@ -591,13 +613,14 @@ public class HeroSelectUI : MonoBehaviour
                 PlayerPrefs.SetInt("BestScore", bestScore);
             }
 
-            UpdateTopHUD();
-
-            if (distanceScore >= nextLevelScoreTarget)
+            while (distanceScore >= nextLevelScoreTarget)
             {
-                nextLevelScoreTarget += scorePerLevel;
+                prevLevelScoreTarget = nextLevelScoreTarget;
+                nextLevelScoreTarget += GetStepScore();
                 TriggerLevelUp();
             }
+
+            UpdateTopHUD();
         }
     }
 
@@ -656,6 +679,9 @@ public class HeroSelectUI : MonoBehaviour
         SetGameplayActive(false);
         distanceScore = 0f;
         runCoins = 0;
+        currentLevel = 1;
+        prevLevelScoreTarget = 0f;
+        nextLevelScoreTarget = GetStepScore();
 
         SwitchState(UIState.MainHub);
         if (isMusicEnabled) audioManager?.PlayMenuMusic();
@@ -775,7 +801,8 @@ public class HeroSelectUI : MonoBehaviour
         distanceScore = 0f;
         runCoins = 0;
         currentLevel = 1;
-        nextLevelScoreTarget = scorePerLevel;
+        prevLevelScoreTarget = 0f;
+        nextLevelScoreTarget = GetStepScore(); // 500,000 для переходу на 2-й рівень, 1,000,000 для 3-го
         isPaused = false;
         isWaitingRevive = false;
         invulnerableTimer = 0f;
@@ -801,7 +828,8 @@ public class HeroSelectUI : MonoBehaviour
         }
 
         gameplaySystems?.ResetForNewRun();
-        gameplaySystems?.ApplyBiomeVisualTheme(activeBiomeIndex);
+        ApplyBiomeEverywhere(activeBiomeIndex);
+        UpdateTopHUD();
 
         if (isMusicEnabled) audioManager?.PlayRunMusic();
     }
@@ -812,8 +840,8 @@ public class HeroSelectUI : MonoBehaviour
         AddCollectedCoin(levelBonusCoins);
         audioManager?.PlayLevelUp();
 
-        int newBiomeIdx = (currentLevel - 1) % biomeNames.Length;
-        gameplaySystems?.ApplyBiomeVisualTheme(newBiomeIdx);
+        int newBiomeIdx = (activeBiomeIndex + currentLevel - 1) % biomeNames.Length;
+        ApplyBiomeEverywhere(newBiomeIdx);
 
         if (heroSwitcher != null && heroSwitcher.heroModels.Count > 0)
         {
@@ -856,10 +884,10 @@ public class HeroSelectUI : MonoBehaviour
     private IEnumerator ShowLevelUpPopupRoutine()
     {
         if (levelUpPanel != null) levelUpPanel.SetActive(true);
-        float timer = autoCloseSeconds;
+        float timer = 1.0f;
         while (timer > 0f)
         {
-            if (levelUpButtonText != null) levelUpButtonText.text = $"ДАЛІ ({timer:0.0} с)";
+            if (levelUpButtonText != null) levelUpButtonText.text = $"ДАЛІ ({Mathf.Max(0f, timer):0.0} с)";
             yield return null;
             timer -= Time.deltaTime;
         }
@@ -919,7 +947,7 @@ public class HeroSelectUI : MonoBehaviour
             if (heroSubtitleText != null) heroSubtitleText.text = heroSwitcher.GetCurrentHeroSubtitle();
             if (heroLockStatusText != null)
             {
-                heroLockStatusText.text = isHeroUnlocked ? "СКІН ВІДКРИТО" : $"ЗАБЛОКОВАНО · ПОТРІБНО {idx * 100000:N0} ОЧОК";
+                heroLockStatusText.text = isHeroUnlocked ? "СКІН ВІДКРИТО" : $"ЗАБЛОКОВАНО · ПОТРІБНО {idx * 500000:N0} ОЧОК";
                 heroLockStatusText.color = isHeroUnlocked ? new Color(0.2f, 0.95f, 0.4f, 1f) : new Color(1f, 0.35f, 0.35f, 1f);
             }
             if (playFromWardrobeButton != null) playFromWardrobeButton.interactable = isHeroUnlocked;
@@ -963,14 +991,14 @@ public class HeroSelectUI : MonoBehaviour
 
         if (biomeStatusText != null)
         {
-            string biomeName = biomeNames[(currentLevel - 1) % biomeNames.Length];
-            biomeStatusText.text = $"LVL {currentLevel} · {biomeName}";
+            int curBiome = (activeBiomeIndex + currentLevel - 1) % biomeNames.Length;
+            biomeStatusText.text = $"LVL {currentLevel} · {biomeNames[curBiome]}";
         }
 
         if (hudProgressFill != null)
         {
-            float prevTarget = nextLevelScoreTarget - scorePerLevel;
-            hudProgressFill.fillAmount = Mathf.Clamp01((distanceScore - prevTarget) / scorePerLevel);
+            float span = Mathf.Max(1f, nextLevelScoreTarget - prevLevelScoreTarget);
+            hudProgressFill.fillAmount = Mathf.Clamp01((distanceScore - prevLevelScoreTarget) / span);
         }
     }
 
